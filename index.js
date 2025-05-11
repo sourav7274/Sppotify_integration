@@ -2,19 +2,17 @@ const express = require("express");
 const axios = require("axios");
 const querystring = require("querystring");
 require("dotenv").config();
-
+const cors = require("cors");
+app.use(cors());
 let accessToken = "";
 let refreshToken = "";
 
 const app = express();
 app.use(express.json());
 
-
-
-app.get('/',(req,res) =>{
-    res.send("testing")
-})
-
+app.get("/", (req, res) => {
+  res.send("testing");
+});
 
 app.get("/login", async (req, res) => {
   const scope =
@@ -90,31 +88,40 @@ app.get("/spotify", async (req, res) => {
   }
 });
 
-app.put('/spotify/pause', async (req, res) => {
+app.put("/spotify/pause", async (req, res) => {
+  if (!accessToken) return res.status(401).send("Not authorized");
+
   try {
-    await axios.put('https://api.spotify.com/v1/me/player/pause', {}, {
-      headers: { Authorization: `Bearer ${accessToken}` }
-    });
+    await axios.put(
+      "https://api.spotify.com/v1/me/player/pause",
+      {},
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }
+    );
     res.send("Paused");
   } catch (err) {
     res.status(400).send("Error pausing playback");
   }
 });
 
-app.put('/spotify/play', async (req, res) => {
+app.put("/spotify/play", async (req, res) => {
+  if (!accessToken) return res.status(401).send("Not authorized");
+
   const { uri } = req.body;
   try {
-    await axios.put('https://api.spotify.com/v1/me/player/play', { uris: [uri] }, {
-      headers: { Authorization: `Bearer ${accessToken}` }
-    });
+    await axios.put(
+      "https://api.spotify.com/v1/me/player/play",
+      { uris: [uri] },
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }
+    );
     res.send("Playing song");
   } catch (err) {
     res.status(400).send("Error playing track");
   }
 });
-
-
-
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
