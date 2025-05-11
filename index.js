@@ -3,13 +3,13 @@ const axios = require("axios");
 const querystring = require("querystring");
 require("dotenv").config();
 const cors = require("cors");
-app.use(cors());
+
 let accessToken = "";
 let refreshToken = "";
 
 const app = express();
 app.use(express.json());
-
+app.use(cors());
 app.get("/", (req, res) => {
   res.send("testing");
 });
