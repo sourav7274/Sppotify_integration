@@ -37,7 +37,6 @@ app.get("/login", async (req, res) => {
   });
 });
 
-
 async function refreshAccessToken() {
   try {
     const response = await axios.post(
@@ -151,8 +150,62 @@ app.put("/spotify/play", async (req, res) => {
   }
 });
 
+app.get("/callback", async (req, res) => {
+  try {
+    const { code } = req.query;
+    if (!code) {
+      return res.status(400).json({ error: "Authorization code missing" });
+    }
+
+    if (
+      !process.env.SPOTIFY_ID ||
+      !process.env.SPOTIFY_SECRET ||
+      !process.env.SPOTIFY_REDIRECT
+    ) {
+      throw new Error("Missing Spotify configuration in environment variables");
+    }
+
+    const tokenResponse = await axios.post(
+      "https://accounts.spotify.com/api/token",
+      querystring.stringify({
+        grant_type: "authorization_code",
+        code,
+        redirect_uri: process.env.SPOTIFY_REDIRECT,
+      }),
+      {
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: `Basic ${Buffer.from(
+            `${process.env.SPOTIFY_ID}:${process.env.SPOTIFY_SECRET}`
+          ).toString("base64")}`,
+        },
+      }
+    );
+
+    accessToken = tokenResponse.data.access_token;
+    refreshToken = tokenResponse.data.refresh_token;
+
+    // Optional: Store tokens securely (in a database or session)
+    console.log("Successfully obtained tokens");
+
+    // Redirect or send success response
+    res.redirect("/spotify"); // Or send JSON response
+  } catch (error) {
+    console.error("Callback error:", error.response?.data || error.message);
+
+    let errorMessage = "Failed to authenticate with Spotify";
+    if (error.response?.data?.error_description) {
+      errorMessage = error.response.data.error_description;
+    }
+
+    res.status(400).json({
+      error: errorMessage,
+      details: error.response?.data || error.message,
+    });
+  }
+});
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log("Server Running on PORT", PORT);
 });
-
