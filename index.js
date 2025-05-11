@@ -16,6 +16,28 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
+app.get("/login", async (req, res) => {
+  const scope =
+    "user-read-playback-state user-modify-playback-state user-read-currently-playing user-follow-read user-top-read streaming";
+
+  const authUrl =
+    "https://accounts.spotify.com/authorize?" +
+    querystring.stringify({
+      response_type: "code",
+      client_id: process.env.SPOTIFY_ID,
+      scope: scope,
+      redirect_uri: process.env.SPOTIFY_REDIRECT,
+      state: "some_random_state_value", // Optional but recommended for security
+    });
+
+  // Return the URL instead of redirecting
+  res.json({
+    url: authUrl,
+    message: "Visit this URL in your browser to authenticate with Spotify",
+  });
+});
+
+
 async function refreshAccessToken() {
   try {
     const response = await axios.post(
@@ -133,3 +155,4 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log("Server Running on PORT", PORT);
 });
+
