@@ -9,7 +9,39 @@ let refreshToken = "";
 
 const app = express();
 app.use(express.json());
-app.use(cors());
+const corsOptions = {
+  origin: "*",
+  credentials: true,
+  optionSuccessStatus: 200,
+};
+app.use(cors(corsOptions));
+
+async function refreshAccessToken() {
+  try {
+    const response = await axios.post(
+      "https://accounts.spotify.com/api/token",
+      querystring.stringify({
+        grant_type: "refresh_token",
+        refresh_token: refreshToken,
+      }),
+      {
+        headers: {
+          Authorization:
+            "Basic " +
+            Buffer.from(
+              `${process.env.SPOTIFY_ID}:${process.env.SPOTIFY_SECRET}`
+            ).toString("base64"),
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+      }
+    );
+    accessToken = response.data.access_token;
+    return accessToken;
+  } catch (err) {
+    console.error("Error refreshing token:", err);
+    throw err;
+  }
+}
 
 app.get("/", (req, res) => {
   res.send("testing");
@@ -97,31 +129,52 @@ app.put("/spotify/pause", async (req, res) => {
       "https://api.spotify.com/v1/me/player/pause",
       {},
       {
-        headers: { Authorization: `Bearer ${accessToken}` },
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
       }
     );
-    res.send("Paused");
+    res.send("Playback paused successfully");
   } catch (err) {
-    res.status(400).send("Error pausing playback");
+    console.error("Error pausing playback:", err.response?.data || err.message);
+    res.status(400).json({
+      error: "Error pausing playback",
+      details: err.response?.data || err.message,
+    });
   }
 });
 
-app.put("/spotify/play", (req, res) => {
-  const uri = req.body.uri;
+app.put("/spotify/play", async (req, res) => {
+  if (!accessToken) return res.status(401).send("Not authorized");
+
+  const { uri } = req.body;
   if (!uri) {
     return res.status(400).json({ error: "No track URI provided" });
   }
 
-  // Assuming you're using the Spotify Web API
-  spotifyApi
-    .play({ uris: [uri] })
-    .then(() => {
-      res.json({ message: "Playing song" });
-    })
-    .catch((err) => {
-      console.error("Error playing track:", err);
-      res.status(500).json({ error: "Error playing track" });
+  try {
+    await axios.put(
+      "https://api.spotify.com/v1/me/player/play",
+      { uris: [uri] },
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    res.json({ message: "Playback started successfully" });
+  } catch (err) {
+    console.error(
+      "Error starting playback:",
+      err.response?.data || err.message
+    );
+    res.status(400).json({
+      error: "Error starting playback",
+      details: err.response?.data || err.message,
     });
+  }
 });
 
 const PORT = process.env.PORT || 5000;
