@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/index.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "env": {
+    "SPOTIFY_ID": "@spotify_id",
+    "SPOTIFY_SECRET": "@spotify_secret",
+    "SPOTIFY_REDIRECT": "@spotify_redirect"
+  }
+}
