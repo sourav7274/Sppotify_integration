@@ -106,22 +106,22 @@ app.put("/spotify/pause", async (req, res) => {
   }
 });
 
-app.put("/spotify/play", async (req, res) => {
-  if (!accessToken) return res.status(401).send("Not authorized");
-
-  const { uri } = req.body;
-  try {
-    await axios.put(
-      "https://api.spotify.com/v1/me/player/play",
-      { uris: [uri] },
-      {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      }
-    );
-    res.send("Playing song");
-  } catch (err) {
-    res.status(400).send("Error playing track");
+app.put("/spotify/play", (req, res) => {
+  const uri = req.body.uri;
+  if (!uri) {
+    return res.status(400).json({ error: "No track URI provided" });
   }
+
+  // Assuming you're using the Spotify Web API
+  spotifyApi
+    .play({ uris: [uri] })
+    .then(() => {
+      res.json({ message: "Playing song" });
+    })
+    .catch((err) => {
+      console.error("Error playing track:", err);
+      res.status(500).json({ error: "Error playing track" });
+    });
 });
 
 const PORT = process.env.PORT || 5000;
