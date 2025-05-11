@@ -48,40 +48,88 @@ app.get("/", (req, res) => {
 });
 
 app.get("/login", async (req, res) => {
-  const scope =
-    "user-read-playback-state user-modify-playback-state user-read-currently-playing user-follow-read user-top-read streaming";
-  const redirectUrl =
-    "https://accounts.spotify.com/authorize?" +
-    querystring.stringify({
+  try {
+    // Validate environment variables first
+    if (!process.env.SPOTIFY_ID || !process.env.SPOTIFY_REDIRECT) {
+      throw new Error("Missing Spotify configuration in environment variables");
+    }
+
+    const scope = [
+      "user-read-playback-state",
+      "user-modify-playback-state",
+      "user-read-currently-playing",
+      "user-follow-read",
+      "user-top-read",
+      "streaming"
+    ].join(" ");
+
+    const authParams = querystring.stringify({
       response_type: "code",
       client_id: process.env.SPOTIFY_ID,
       scope: scope,
       redirect_uri: process.env.SPOTIFY_REDIRECT,
+      show_dialog: true // Optional: forces approval dialog every time
     });
-  res.redirect(redirectUrl);
+
+    res.redirect(`https://accounts.spotify.com/authorize?${authParams}`);
+  } catch (error) {
+    console.error("Login error:", error);
+    res.status(500).json({ error: "Failed to initiate Spotify login" });
+  }
 });
 
 app.get("/callback", async (req, res) => {
-  const code = req.query.code || null;
   try {
-    const response = await axios.post(
+    const { code } = req.query;
+    if (!code) {
+      return res.status(400).json({ error: "Authorization code missing" });
+    }
+
+    if (!process.env.SPOTIFY_ID || !process.env.SPOTIFY_SECRET || !process.env.SPOTIFY_REDIRECT) {
+      throw new Error("Missing Spotify configuration in environment variables");
+    }
+
+    const tokenResponse = await axios.post(
       "https://accounts.spotify.com/api/token",
       querystring.stringify({
-        code: code,
-        redirect_uri: process.env.SPOTIFY_REDIRECT,
         grant_type: "authorization_code",
+        code,
+        redirect_uri: process.env.SPOTIFY_REDIRECT
       }),
       {
         headers: {
-          Authorization:
-            "Basic " +
-            Buffer.from(
-              `${process.env.SPOTIFY_ID}:${process.env.SPOTIFY_SECRET}`
-            ).toString("base64"),
           "Content-Type": "application/x-www-form-urlencoded",
-        },
+          "Authorization": `Basic ${Buffer.from(
+            `${process.env.SPOTIFY_ID}:${process.env.SPOTIFY_SECRET}`
+          ).toString("base64")}`
+        }
       }
     );
+
+    accessToken = tokenResponse.data.access_token;
+    refreshToken = tokenResponse.data.refresh_token;
+
+    // Optional: Store tokens securely (in a database or session)
+    console.log("Successfully obtained tokens");
+
+    // Redirect or send success response
+    res.redirect("/spotify"); // Or send JSON response
+    // res.json({ success: true, access_token: accessToken });
+    
+  } catch (error) {
+    console.error("Callback error:", error.response?.data || error.message);
+    
+    let errorMessage = "Failed to authenticate with Spotify";
+    if (error.response?.data?.error_description) {
+      errorMessage = error.response.data.error_description;
+    }
+
+    res.status(400).json({ 
+      error: errorMessage,
+      details: error.response?.data || error.message
+    });
+  }
+});
 
     accessToken = response.data.access_token;
     refreshToken = response.data.refresh_token;
