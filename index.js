@@ -60,7 +60,7 @@ app.get("/login", async (req, res) => {
       "user-read-currently-playing",
       "user-follow-read",
       "user-top-read",
-      "streaming"
+      "streaming",
     ].join(" ");
 
     const authParams = querystring.stringify({
@@ -68,7 +68,7 @@ app.get("/login", async (req, res) => {
       client_id: process.env.SPOTIFY_ID,
       scope: scope,
       redirect_uri: process.env.SPOTIFY_REDIRECT,
-      show_dialog: true // Optional: forces approval dialog every time
+      show_dialog: true, // Optional: forces approval dialog every time
     });
 
     res.redirect(`https://accounts.spotify.com/authorize?${authParams}`);
@@ -85,7 +85,11 @@ app.get("/callback", async (req, res) => {
       return res.status(400).json({ error: "Authorization code missing" });
     }
 
-    if (!process.env.SPOTIFY_ID || !process.env.SPOTIFY_SECRET || !process.env.SPOTIFY_REDIRECT) {
+    if (
+      !process.env.SPOTIFY_ID ||
+      !process.env.SPOTIFY_SECRET ||
+      !process.env.SPOTIFY_REDIRECT
+    ) {
       throw new Error("Missing Spotify configuration in environment variables");
     }
 
@@ -94,15 +98,15 @@ app.get("/callback", async (req, res) => {
       querystring.stringify({
         grant_type: "authorization_code",
         code,
-        redirect_uri: process.env.SPOTIFY_REDIRECT
+        redirect_uri: process.env.SPOTIFY_REDIRECT,
       }),
       {
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
-          "Authorization": `Basic ${Buffer.from(
+          Authorization: `Basic ${Buffer.from(
             `${process.env.SPOTIFY_ID}:${process.env.SPOTIFY_SECRET}`
-          ).toString("base64")}`
-        }
+          ).toString("base64")}`,
+        },
       }
     );
 
@@ -115,27 +119,18 @@ app.get("/callback", async (req, res) => {
     // Redirect or send success response
     res.redirect("/spotify"); // Or send JSON response
     // res.json({ success: true, access_token: accessToken });
-    
   } catch (error) {
     console.error("Callback error:", error.response?.data || error.message);
-    
+
     let errorMessage = "Failed to authenticate with Spotify";
     if (error.response?.data?.error_description) {
       errorMessage = error.response.data.error_description;
     }
 
-    res.status(400).json({ 
+    res.status(400).json({
       error: errorMessage,
-      details: error.response?.data || error.message
+      details: error.response?.data || error.message,
     });
-  }
-});
-
-    accessToken = response.data.access_token;
-    refreshToken = response.data.refresh_token;
-    res.send("Authorization successful. You can now access /spotify endpoint.");
-  } catch (err) {
-    res.status(500).json({ message: "Internal Server Error", err });
   }
 });
 
