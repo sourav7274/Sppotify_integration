@@ -48,34 +48,24 @@ app.get("/", (req, res) => {
 });
 
 app.get("/login", async (req, res) => {
-  try {
-    // Validate environment variables first
-    if (!process.env.SPOTIFY_ID || !process.env.SPOTIFY_REDIRECT) {
-      throw new Error("Missing Spotify configuration in environment variables");
-    }
+  const scope =
+    "user-read-playback-state user-modify-playback-state user-read-currently-playing user-follow-read user-top-read streaming";
 
-    const scope = [
-      "user-read-playback-state",
-      "user-modify-playback-state",
-      "user-read-currently-playing",
-      "user-follow-read",
-      "user-top-read",
-      "streaming",
-    ].join(" ");
-
-    const authParams = querystring.stringify({
+  const authUrl =
+    "https://accounts.spotify.com/authorize?" +
+    querystring.stringify({
       response_type: "code",
       client_id: process.env.SPOTIFY_ID,
       scope: scope,
       redirect_uri: process.env.SPOTIFY_REDIRECT,
-      show_dialog: true, // Optional: forces approval dialog every time
+      state: "some_random_state_value", // Optional but recommended for security
     });
 
-    res.redirect(`https://accounts.spotify.com/authorize?${authParams}`);
-  } catch (error) {
-    console.error("Login error:", error);
-    res.status(500).json({ error: "Failed to initiate Spotify login" });
-  }
+  // Return the URL instead of redirecting
+  res.json({
+    url: authUrl,
+    message: "Visit this URL in your browser to authenticate with Spotify",
+  });
 });
 
 app.get("/callback", async (req, res) => {
